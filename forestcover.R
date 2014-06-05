@@ -85,10 +85,21 @@ gbm2 <- gbm.fit(x=train[,c(2:10,12:15)],
             #cv.folds = 10,
             verbose=TRUE)  
 
+train <- train[,-c(1)]
+gbm3 <- gbm(Cover_Type ~ ., data = train, distribution="multinomial", 
+            n.trees = 1000, shrinkage=0.05, interaction.depth=3,
+            bag.fraction = 0.5, verbose = TRUE, train.fraction = 0.7,
+            cv.folds = 10)
+
+
 #best iter
-best.iter <- gbm.perf(gbm1,method="OOB")
+best.iter <- gbm.perf(gbm3,method="OOB")
 print(best.iter)
 
+best.iter <- gbm.perf(gbm3,method="test")
+print(best.iter)
+
+best.iter <- gbm.perf(gbm3,method="cv")
 #----------------------------------------------
 # Predict on test
 #----------------------------------------------
@@ -125,5 +136,15 @@ test <- test[,-c(3)]
 
 
 ### predict
-pred1 <- predict(gbm1, test, best.iter,type="response")
+pred1 <- predict(gbm3, test, best.iter,type="response")
+mat <-pred1[,,1]
+k <- ncol(mat)
+Cover_Type <- apply(mat,1,function(x) which(x[1:k] == max(x[1:k])))
+
+
+# Submit
+submit <- data.frame(Id=test$Id,Cover_Type)
+write.table(submit,"data/submit.csv",sep=",",row.names=FALSE,quote=FALSE)
+
+#http://www.jameskeirstead.ca/blog/how-to-multinomial-regression-models-in-r/
 
