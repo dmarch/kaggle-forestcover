@@ -37,7 +37,8 @@ levels(train$Soil_Type) <- c(levels(train$Soil_Type),names(sel))
 train <- train[,-c(12:55)]
 
 # transform Aspect in radians and then cosinus transformation
-train$Aspect_cos <- cos(train$Aspect*pi/180) #northness (create eastness as well)
+train$Aspect_cos <- cos(train$Aspect*pi/180) #northness
+train$Aspect_sin <- sin(train$Aspect*pi/180) #eastness
 train <- train[,-c(3)]
 
 
@@ -48,10 +49,9 @@ train <- train[,-c(3)]
 # try multinomial in gbm
 library(gbm)
 
-
 gbm1 <- gbm(Cover_Type~Elevation+Slope+Horizontal_Distance_To_Hydrology+Vertical_Distance_To_Hydrology+
       Horizontal_Distance_To_Roadways+Hillshade_9am+Hillshade_Noon+Hillshade_3pm+
-      Horizontal_Distance_To_Fire_Points+wilderness+Soil_Type+Aspect_cos,
+      Horizontal_Distance_To_Fire_Points+wilderness+Soil_Type+Aspect_cos+Aspect_sin,
     # formula
     data=train,                   # dataset
     #var.monotone=c(0,0,0,0,0,0), # -1: monotone decrease,
@@ -72,7 +72,22 @@ gbm1 <- gbm(Cover_Type~Elevation+Slope+Horizontal_Distance_To_Hydrology+Vertical
     n.cores=1)                   # use only a single core (detecting #cores is
 # error-prone, so avoided here)
 
+gbm2 <- gbm.fit(x=train[,c(2:10,12:15)],
+            y=train[,11],
+            distribution="multinomial",     # see the help for other choices
+            n.trees=1000,                # number of trees
+            shrinkage=0.05,              # shrinkage or learning rate,
+            interaction.depth=3,         # 1: additive model, 2: two-way interactions, etc.
+            bag.fraction = 0.5,          # subsampling fraction, 0.5 is probably best
+            nTrain = 15000,        # fraction of data for training,
+            n.minobsinnode = 10,         # minimum total weight needed in each node
+            keep.data=TRUE,             # keep a copy of the dataset with the object
+            #cv.folds = 10,
+            verbose=TRUE)  
 
+#best iter
+best.iter <- gbm.perf(gbm1,method="OOB")
+print(best.iter)
 
 #----------------------------------------------
 # Predict on test
@@ -105,6 +120,7 @@ test <- test[,-c(12:55)]
 
 # transform Aspect in radians and then cosinus transformation
 test$Aspect_cos <- cos(test$Aspect*pi/180) #northness (create eastness as well)
+test$Aspect_sin <- sin(test$Aspect*pi/180) #northness (create eastness as well)
 test <- test[,-c(3)]
 
 
